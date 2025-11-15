@@ -145,5 +145,3 @@ if st.button("점수 초기화"):
     st.session_state.result_message = "점수가 초기화되었습니다. 다시 시작하세요!"
 
     st.rerun() # 앱을 다시 로드하여 초기화된 상태 반영
-
-
