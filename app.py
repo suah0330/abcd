@@ -1,74 +1,97 @@
 import streamlit as st
 import random
+import time
 
-st.title("가위바위보 게임 ✊✋✌️")
+# --- 게임 설정 ---
+GRID_WIDTH = 10
+GRID_HEIGHT = 20
+EMPTY = 0
+FILLED = 1
 
-# 게임 옵션과 이모지 정의
-options = {"바위": "✊", "가위": "✌️", "보": "✋"}
-choices = list(options.keys())
+st.set_page_config(layout="centered", initial_sidebar_state="collapsed")
 
-# 게임 상태 초기화 (Session State 사용)
-if 'user_score' not in st.session_state:
-    st.session_state.user_score = 0
-if 'computer_score' not in st.session_state:
-    st.session_state.computer_score = 0
-if 'result_message' not in st.session_state:
-    st.session_state.result_message = "게임을 시작해 보세요!"
+# 게임 상태 초기화
+if 'board' not in st.session_state:
+    st.session_state.board = [[EMPTY for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+if 'score' not in st.session_state:
+    st.session_state.score = 0
+if 'game_over' not in st.session_state:
+    st.session_state.game_over = False
 
-
-def play_game(user_choice):
-    """게임 로직 처리 및 결과 업데이트"""
-    computer_choice = random.choice(choices)
-    user_emoji = options[user_choice]
-    computer_emoji = options[computer_choice]
-    
-    result = ""
-
-    if user_choice == computer_choice:
-        result = "비겼습니다!"
-    elif (user_choice == "바위" and computer_choice == "가위") or \
-         (user_choice == "가위" and computer_choice == "보") or \
-         (user_choice == "보" and computer_choice == "바위"):
-        result = "🎉 **당신이 이겼습니다!**"
-        st.session_state.user_score += 1
+def create_new_block():
+    """간단한 1x1 블록을 맨 위에 생성합니다 (복잡한 테트리스 블록 대신 단순화)"""
+    # 랜덤한 위치에 블록을 놓습니다
+    x = random.randint(0, GRID_WIDTH - 1)
+    y = 0
+    if st.session_state.board[y][x] == FILLED:
+        st.session_state.game_over = True
     else:
-        result = "💻 컴퓨터가 이겼습니다."
-        st.session_state.computer_score += 1
+        st.session_state.board[y][x] = FILLED
+
+def draw_board():
+    """현재 게임 보드를 Streamlit에 표시합니다"""
+    html_code = "<div style='display: grid; grid-template-columns: repeat(" + str(GRID_WIDTH) + ", 20px);'>"
+    for row in st.session_state.board:
+        for cell in row:
+            color = 'gray' if cell == EMPTY else 'blue'
+            html_code += f"<div style='width: 20px; height: 20px; background-color: {color}; border: 1px solid #ddd;'></div>"
+    html_code += "</div>"
+    st.markdown(html_code, unsafe_allow_html=True)
+
+def move_down():
+    """모든 블록을 한 칸 아래로 이동시킵니다"""
+    if st.session_state.game_over:
+        return
+
+    new_board = [[EMPTY for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+    moved = False
+    for r in range(GRID_HEIGHT - 2, -1, -1):
+        for c in range(GRID_WIDTH):
+            if st.session_state.board[r][c] == FILLED:
+                if st.session_state.board[r+1][c] == EMPTY:
+                    new_board[r+1][c] = FILLED
+                    moved = True
+                else:
+                    new_board[r][c] = FILLED # 아래 칸이 차있으면 그대로 둠
     
-    st.session_state.result_message = f"**당신**: {user_emoji} vs **컴퓨터**: {computer_emoji} -> {result}"
+    st.session_state.board = new_board
+    if not moved:
+        # 더 이상 움직일 블록이 없으면 새 블록 생성
+        check_lines()
+        create_new_block()
+
+def check_lines():
+    """완성된 줄을 제거하고 점수를 추가합니다"""
+    new_board = []
+    lines_cleared = 0
+    for row in st.session_state.board:
+        if EMPTY in row:
+            new_board.append(row)
+        else:
+            lines_cleared += 1
+            st.session_state.score += 10
+    
+    # 제거된 줄 수만큼 빈 줄을 맨 위에 추가
+    for _ in range(lines_cleared):
+        new_board.insert(0, [EMPTY for _ in range(GRID_WIDTH)])
+    
+    st.session_state.board = new_board
 
 
-# --- 앱 레이아웃 ---
+# --- UI 구성 ---
 
-# 점수판 표시
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("내 점수", st.session_state.user_score)
-with col2:
-    st.metric("컴퓨터 점수", st.session_state.computer_score)
+st.sidebar.title("조작")
+st.sidebar.button('블록 아래로 이동', on_click=move_down)
+st.sidebar.button('새 블록 생성', on_click=create_new_block)
 
-st.markdown("---")
+st.write(f"현재 점수: **{st.session_state.score}**")
 
-# 게임 결과 메시지 출력
-st.subheader(st.session_state.result_message)
+if st.session_state.game_over:
+    st.error("게임 오버! 😭")
+    if st.button("다시 시작"):
+        st.session_state.board = [[EMPTY for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+        st.session_state.score = 0
+        st.session_state.game_over = False
+        st.rerun()
 
-st.markdown("---")
-
-# 사용자 선택 버튼
-st.write("가위, 바위, 보 중 선택하세요:")
-col_btns = st.columns(3)
-
-with col_btns[0]:
-    # 버튼 클릭 시 play_game 함수 실행 및 인자 전달
-    st.button("바위 ✊", on_click=play_game, args=["바위"])
-with col_btns[1]:
-    st.button("가위 ✌️", on_click=play_game, args=["가위"])
-with col_btns[2]:
-    st.button("보 ✋", on_click=play_game, args=["보"])
-
-# 리셋 버튼
-if st.button("점수 초기화"):
-    st.session_state.user_score = 0
-    st.session_state.computer_score = 0
-    st.session_state.result_message = "점수가 초기화되었습니다. 다시 시작하세요!"
-    st.rerun() # 앱을 다시 로드하여 초기화된 상태 반영
+draw_board()
