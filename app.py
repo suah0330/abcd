@@ -1,13 +1,13 @@
 import streamlit as st
 
-# 웹 앱의 제목 설정
-st.title('나의 첫 스트림릿 앱')
+st.title('나의 첫 번째 스트림릿 앱 ✨')
 
-# 헤더 추가
-st.header('간단한 예제입니다')
+# 사용자에게 텍스트 입력 받기
+user_name = st.text_input("이름을 입력해주세요:")
 
-# 텍스트 입력 위젯 추가
-user_input = st.text_input("여기에 메시지를 입력하세요:", "Hello, Streamlit!")
-
-# 입력받은 텍스트 표시
-st.write('사용자가 입력한 메시지:', user_input)
+# 버튼 생성
+if st.button('인사하기'):
+    if user_name:
+        st.write(f"안녕하세요, {user_name}님! 만나서 반가워요.")
+    else:
+        st.write("이름을 입력해주세요.")
